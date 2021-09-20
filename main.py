@@ -1,7 +1,8 @@
-# from time import sleep
+from time import sleep
 import os
 from collections import defaultdict
 import random
+from rich.style import StyleType
 
 from rich.traceback import install
 from rich.console import Console
@@ -16,15 +17,15 @@ dSpielerNamen = {
   4: 'Hannah'
 }
 
-bClearscreen = True
+bClearscreen = False
 field_free = '.'
-field_hole = 'Loch'
+field_hole = ':hole:'
 sClick = 'KLICK'
 num_of_ones = 24
 num_of_twos = 8
 num_of_threes = 4
-num_of_clicks = 12
-num_of_positions = 28
+num_of_clicks = 20  # 12
+num_of_positions = 25  # 28
 
 lones = [1] * num_of_ones
 ltwos = [2] * num_of_twos
@@ -103,13 +104,14 @@ def move_player(iPlayer: int, iSteps: int):
   # Ziel ein Loch
   if sTarget == field_hole:
     dPlayers[iPlayer]['positionen'][0] = 0
-    dBoard[iPos] = field_free
     print(f'{field_hole}...')
   # Ziel ist frei
   elif sTarget == field_free:
     dPlayers[iPlayer]['positionen'][0] = iTarget_field
-    dBoard[iPos] = field_free
     print(f'{field_free}')
+
+  if iPos != 0:
+    dBoard[iPos] = field_free
 
   return False, iTarget_field
 
@@ -118,7 +120,18 @@ def show_status_board():
   pos = [str(x) for x in dBoard.keys()]
   loads = [str(x) for x in dBoard.values()]
   con.print('\t'.join(pos[:num_of_positions // 3]))
-  con.print('\t'.join(loads[:num_of_positions // 3]))
+  # con.print('\t'.join(loads[:num_of_positions // 3]))
+  for field in loads[:num_of_positions // 3]:
+    # Loch
+    if field == field_hole:
+      con.print(f'[reverse][red]{field_hole}')
+    # with player
+    elif field != field_free:
+      ifield = int(field)
+      scolor = dBoard[ifield]["color"]
+      sname = dBoard[ifield]["name"]
+      con.print(f'[{scolor}]{sname}[/]')
+
   con.print()
   con.print('\t'.join(pos[num_of_positions // 3:(num_of_positions // 3) * 2]))
   con.print('\t'.join(loads[num_of_positions // 3:(num_of_positions // 3) * 2]))
@@ -133,7 +146,7 @@ def edit_board():
     print(f"{v['name']}: {v['positionen']}")
     for pos in v['positionen']:
       if pos:
-        dBoard[pos] = v['name'][:7]
+        dBoard[pos] = k
 
 
 dPlayers = {}
@@ -162,6 +175,9 @@ dTimeline = {}
 iRound = 0
 
 while True:
+  print("#" * 50)
+  print(dPlayers)
+  print(dBoard)
   if iCurr_player == 1:
     iRound += 1
     dTimeline[iRound] = []
@@ -173,6 +189,8 @@ while True:
   sColor = dPlayers[iCurr_player]['color']
   edit_board()
   show_status_board()
+  con.print(f'{sColor}{sCurr_player.upper()}[/], Du bist dran - ziehe eine Karte!')
+  input()
   con.print(f"{sColor}{sCurr_player}[/] zieht eine Karte:")
   sCard, lDeck_of_cards = pick_card()
   con.print(f"{sCard = }")
@@ -181,7 +199,9 @@ while True:
     last_hole = hole
     con.print(f'[blue]{sClick}!', end="")
     hole = next(holes)
+    # Liste der Löcher aufgebraucht?
     if hole is None:
+      # resetten
       holes = click()
       hole = next(holes)
     con.print(f' -> [yellow]-{hole}-')
