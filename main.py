@@ -7,6 +7,8 @@ from rich.style import StyleType
 from rich.traceback import install
 from rich.console import Console
 
+import _banners
+
 install()
 con = Console()
 
@@ -17,15 +19,16 @@ dSpielerNamen = {
   4: 'Hannah'
 }
 
-bClearscreen = False
+bClearscreen = True
 field_free = '.'
 field_hole = ':hole:'
 sClick = 'KLICK'
 num_of_ones = 24
 num_of_twos = 8
 num_of_threes = 4
-num_of_clicks = 20  # 12
-num_of_positions = 25  # 28
+num_of_clicks = 12
+num_of_positions = 28
+num_of_pieces_per_player = 4
 
 lones = [1] * num_of_ones
 ltwos = [2] * num_of_twos
@@ -60,6 +63,31 @@ def pick_card():
 def click():
   for h in lHoles:
     yield h
+
+
+def clicked(hole: int):
+  global holes
+  con.print(f'[blue]{sClick}!', end="")
+  last_hole = hole
+  hole = next(holes)
+  # Liste der Löcher aufgebraucht?
+  if hole is None:
+    # resetten
+    holes = click()
+    hole = next(holes)
+  con.print(f' -> [yellow]-{hole}-')
+  if last_hole:
+    dBoard[last_hole] = field_free
+  if dBoard[hole] != field_free:
+    iPlayer_on_hole = dBoard[hole]
+    sName = dPlayers[iPlayer_on_hole]['name']
+    sColor = dPlayers[iPlayer_on_hole]['color']
+    con.print(f'[red][blink]{_banners.sHole}')
+    con.print(f'Oh NEIN!! Spieler {sColor}{sName}[/] fällt durch das Loch...')
+    dPlayers[iPlayer_on_hole]['positionen'][0] = 0
+    # input('weiter...')
+  dBoard[hole] = field_hole
+  return dBoard, hole
 
 
 def get_next_player(current: int):  # , max_players: int):
@@ -103,12 +131,14 @@ def move_player(iPlayer: int, iSteps: int):
 
   # Ziel ein Loch
   if sTarget == field_hole:
+    sName = dPlayers[iPlayer]['name']
+    sColor = dPlayers[iPlayer]['color']
+    con.print(f'Oh NEIN!! Spieler {sColor}{sName}[/] hüpft in das Loch...')
     dPlayers[iPlayer]['positionen'][0] = 0
-    print(f'{field_hole}...')
+    input('weiter...')
   # Ziel ist frei
   elif sTarget == field_free:
     dPlayers[iPlayer]['positionen'][0] = iTarget_field
-    print(f'{field_free}')
 
   if iPos != 0:
     dBoard[iPos] = field_free
@@ -124,26 +154,55 @@ def show_status_board():
   for field in loads[:num_of_positions // 3]:
     # Loch
     if field == field_hole:
-      con.print(f'[reverse][red]{field_hole}')
+      con.print(f'{field_hole}', end='\t')
+    # free
+    elif field == field_free:
+      con.print(field_free, end='\t')
     # with player
-    elif field != field_free:
+    else:
       ifield = int(field)
-      scolor = dBoard[ifield]["color"]
-      sname = dBoard[ifield]["name"]
-      con.print(f'[{scolor}]{sname}[/]')
+      scolor = dPlayers[ifield]["color"]
+      sname = dPlayers[ifield]["name"]
+      con.print(f'{scolor}{sname}[/]', end='\t')
 
   con.print()
   con.print('\t'.join(pos[num_of_positions // 3:(num_of_positions // 3) * 2]))
-  con.print('\t'.join(loads[num_of_positions // 3:(num_of_positions // 3) * 2]))
+  # con.print('\t'.join(loads[num_of_positions // 3:(num_of_positions // 3) * 2]))
+  for field in loads[num_of_positions // 3:(num_of_positions // 3) * 2]:
+    # Loch
+    if field == field_hole:
+      con.print(f'[reverse][red]{field_hole}', end='\t')
+    # free
+    elif field == field_free:
+      con.print(field_free, end='\t')
+    # with player
+    else:
+      ifield = int(field)
+      scolor = dPlayers[ifield]["color"]
+      sname = dPlayers[ifield]["name"]
+      con.print(f'{scolor}{sname}[/]', end='\t')
   con.print()
   con.print('\t'.join(pos[(num_of_positions // 3) * 2:]))
-  con.print('\t'.join(loads[(num_of_positions // 3) * 2:]))
+  # con.print('\t'.join(loads[(num_of_positions // 3) * 2:]))
+  for field in loads[(num_of_positions // 3) * 2:]:
+    # Loch
+    if field == field_hole:
+      con.print(f'[reverse][red]{field_hole}', end='\t')
+    # free
+    elif field == field_free:
+      con.print(field_free, end='\t')
+    # with player
+    else:
+      ifield = int(field)
+      scolor = dPlayers[ifield]["color"]
+      sname = dPlayers[ifield]["name"]
+      con.print(f'{scolor}{sname}[/]', end='\t')
   con.print()
 
 
 def edit_board():
   for k, v in dPlayers.items():
-    print(f"{v['name']}: {v['positionen']}")
+    # print(f"{v['name']}: {v['positionen']}")
     for pos in v['positionen']:
       if pos:
         dBoard[pos] = k
@@ -159,7 +218,7 @@ for i in range(1, num_of_players + 1):
   dColors[iColor]['taken'] = i
   dPlayers[i] = {
     'name': name,
-    'positionen': [0] * 4,
+    'positionen': [0] * num_of_pieces_per_player,
     'color': dColors[iColor]['text']
   }
 
@@ -175,14 +234,15 @@ dTimeline = {}
 iRound = 0
 
 while True:
+  if bClearscreen:
+    os.system('cls')
   print("#" * 50)
-  print(dPlayers)
-  print(dBoard)
+  for k, v in dPlayers.items():
+    con.print(f'Spieler {k}:')
+    con.print(f"Name: {v['name']} - {v['positionen']}")
   if iCurr_player == 1:
     iRound += 1
     dTimeline[iRound] = []
-  if bClearscreen:
-    os.system('cls')
   bWin, iTarget_field = False, None
   sCard = None
   sCurr_player = dPlayers[iCurr_player]['name']
@@ -190,24 +250,14 @@ while True:
   edit_board()
   show_status_board()
   con.print(f'{sColor}{sCurr_player.upper()}[/], Du bist dran - ziehe eine Karte!')
-  input()
-  con.print(f"{sColor}{sCurr_player}[/] zieht eine Karte:")
+  con.print(f"{sColor}{sCurr_player}[/] zieht eine Karte....")
+  with con.status("[yellow] Lese Integrationsliste", spinner="boxBounce"):
+    sleep(2)
   sCard, lDeck_of_cards = pick_card()
   con.print(f"{sCard = }")
 
   if sCard == sClick:
-    last_hole = hole
-    con.print(f'[blue]{sClick}!', end="")
-    hole = next(holes)
-    # Liste der Löcher aufgebraucht?
-    if hole is None:
-      # resetten
-      holes = click()
-      hole = next(holes)
-    con.print(f' -> [yellow]-{hole}-')
-    if last_hole:
-      dBoard[last_hole] = field_free
-    dBoard[hole] = field_hole
+    dBoard, hole = clicked(hole)
   else:
     # Player already present on board
     if any(dPlayers[iCurr_player]['positionen']):
@@ -217,6 +267,7 @@ while True:
       else:
         bWin, iTarget_field = move_player(iCurr_player, sCard)
         if bWin:
+          con.print(f'[yellow]{_banners.sWinner}')
           con.print(f'YEEAAHH!!!!! {sColor}{sCurr_player}[/] hat gewonnen!!')
     else:
       # Place first player on board
