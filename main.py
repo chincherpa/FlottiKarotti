@@ -1,6 +1,5 @@
 from time import sleep
 import os
-from collections import defaultdict
 import random
 from rich.style import StyleType
 
@@ -120,9 +119,39 @@ def get_target_field(pos, iSteps):
   return iResult
 
 
+def print_pieces(iPlayer):
+  lPieces = dPlayers[iPlayer]['positionen']
+  for idx, iField in enumerate(lPieces):
+    con.print(f'{idx}: eine Spielfigur auf Feld: {iField}')
+
+
 def move_player(iPlayer: int, iSteps: int):
-  iPos = dPlayers[iPlayer]['positionen'][0]
+  iSetPieces = dPlayers[iPlayer]['set_pieces']
+
+  # first piece
+  bFirstPiece = iSetPieces == 0
+  bOnePiece = iSetPieces == 1
+  bMorePieces = iSetPieces > 1
+
+  # noch keine Figur
+  if bFirstPiece:
+    iPos = 0
+  # genau eine Figur
+  elif bOnePiece:
+    iPos = dPlayers[iPlayer]['positionen'][0]
+  # mehr als eine Figur
+  elif bMorePieces:
+    con.print(f'Du hast {iSetPieces} im Spiel:')
+    print_pieces(iPlayer)
+    iPiece = input('Welche Figur willst du bewegen?\t')
+    iPos = dPlayers[iPlayer]['positionen'][iPiece]
+  else:
+    print('FEHLER')
+    iPos = None
+
   iTarget_field = get_target_field(iPos, iSteps)
+
+  # Endposition erreicht
   if iTarget_field >= num_of_positions:
     dPlayers[iPlayer]['positionen'][0] = num_of_positions
     dBoard[iPos] = field_free
@@ -219,7 +248,8 @@ for i in range(1, num_of_players + 1):
   dPlayers[i] = {
     'name': name,
     'positionen': [0] * num_of_pieces_per_player,
-    'color': dColors[iColor]['text']
+    'color': dColors[iColor]['text'],
+    'set_pieces': 0
   }
 
 for k, v in dPlayers.items():
@@ -234,8 +264,10 @@ dTimeline = {}
 iRound = 0
 
 while True:
+  sleep(2)
   if bClearscreen:
     os.system('cls')
+  print("#" * 50)
   print("#" * 50)
   for k, v in dPlayers.items():
     con.print(f'Spieler {k}:')
@@ -250,15 +282,15 @@ while True:
   edit_board()
   show_status_board()
   con.print(f'{sColor}{sCurr_player.upper()}[/], Du bist dran - ziehe eine Karte!')
-  con.print(f"{sColor}{sCurr_player}[/] zieht eine Karte....")
-  with con.status("[yellow] Lese Integrationsliste", spinner="boxBounce"):
+  with con.status(f'{sColor}{sCurr_player}[/] zieht eine Karte....', spinner="boxBounce"):
     sleep(2)
   sCard, lDeck_of_cards = pick_card()
-  con.print(f"{sCard = }")
 
   if sCard == sClick:
+    con.print(f'KLICK! {sColor}{sCurr_player}[/] darf drehen')
     dBoard, hole = clicked(hole)
   else:
+    con.print(f'{sColor}{sCurr_player}[/] darf {sCard} Schritte gehen...')
     # Player already present on board
     if any(dPlayers[iCurr_player]['positionen']):
       sNew = 'b'  # input('[N]eue Figur oder [B]ewegen?\t')[0].lower()
