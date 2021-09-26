@@ -8,7 +8,8 @@ from rich.console import Console
 
 import _banners
 
-install()
+# rich traceback
+# install()
 con = Console()
 
 dSpielerNamen = {
@@ -27,7 +28,7 @@ num_of_twos = 8
 num_of_threes = 4
 num_of_clicks = 12
 num_of_positions = 28
-num_of_pieces_per_player = 4
+num_of_pieces_per_player = 1  # int(input('Wieviele Spielfiguren pro Spieler?:\t'))
 
 lones = [1] * num_of_ones
 ltwos = [2] * num_of_twos
@@ -47,7 +48,7 @@ dColors = {
 }
 
 # Start
-num_of_players = 4  # int(input('Wieviele Spieler?:\t'))
+num_of_players = 2  # int(input('Wieviele Spieler?:\t'))
 
 
 def pick_card():
@@ -136,6 +137,7 @@ def move_player(iPlayer: int, iSteps: int):
   # noch keine Figur
   if bFirstPiece:
     iPos = 0
+    dPlayers[iPlayer]['set_pieces'] += 1
   # genau eine Figur
   elif bOnePiece:
     iPos = dPlayers[iPlayer]['positionen'][0]
@@ -200,7 +202,7 @@ def show_status_board():
   for field in loads[num_of_positions // 3:(num_of_positions // 3) * 2]:
     # Loch
     if field == field_hole:
-      con.print(f'[reverse][red]{field_hole}', end='\t')
+      con.print(f'{field_hole}', end='\t')
     # free
     elif field == field_free:
       con.print(field_free, end='\t')
@@ -216,7 +218,7 @@ def show_status_board():
   for field in loads[(num_of_positions // 3) * 2:]:
     # Loch
     if field == field_hole:
-      con.print(f'[reverse][red]{field_hole}', end='\t')
+      con.print(f'{field_hole}', end='\t')
     # free
     elif field == field_free:
       con.print(field_free, end='\t')
@@ -264,7 +266,8 @@ dTimeline = {}
 iRound = 0
 
 while True:
-  sleep(2)
+  # print(dBoard)
+  # sleep(2)
   if bClearscreen:
     os.system('cls')
   print("#" * 50)
@@ -282,34 +285,50 @@ while True:
   edit_board()
   show_status_board()
   con.print(f'{sColor}{sCurr_player.upper()}[/], Du bist dran - ziehe eine Karte!')
-  with con.status(f'{sColor}{sCurr_player}[/] zieht eine Karte....', spinner="boxBounce"):
-    sleep(2)
+  # with con.status(f'{sColor}{sCurr_player}[/] zieht eine Karte....', spinner="dots"):
+  #   sleep()
   sCard, lDeck_of_cards = pick_card()
 
   if sCard == sClick:
-    con.print(f'KLICK! {sColor}{sCurr_player}[/] darf drehen')
+    sTurn = f'KLICK! {sColor}{sCurr_player}[/] darf drehen'
+    dTimeline[iRound].append(sTurn)
+    con.print(sTurn)
     dBoard, hole = clicked(hole)
   else:
     con.print(f'{sColor}{sCurr_player}[/] darf {sCard} Schritte gehen...')
     # Player already present on board
     if any(dPlayers[iCurr_player]['positionen']):
-      sNew = 'b'  # input('[N]eue Figur oder [B]ewegen?\t')[0].lower()
-      if sNew == 'n':
-        bWin, iTarget_field = new_player(iCurr_player, sCard)
+      if num_of_pieces_per_player > 1:
+        sNew = input('[N]eue Figur oder [B]ewegen?\t')[0].lower()
+        if sNew == 'n':
+          bWin, iTarget_field = new_player(iCurr_player, sCard)
+          sTurn = f'{sColor}{sCurr_player}[/] setzt eine weitere Figur auf {iTarget_field}.'
+          dTimeline[iRound].append(sTurn)
+        else:
+          bWin, iTarget_field = move_player(iCurr_player, sCard)
+          sTurn = f'{sColor}{sCurr_player}[/] darf {sCard} Schritte gehen und landet auf {iTarget_field}.'
+          dTimeline[iRound].append(sTurn)
+          if bWin:
+            con.print(f'[yellow]{_banners.sWinner}')
+            sTurn = f'YEEAAHH!!!!! {sColor}{sCurr_player}[/] hat gewonnen!!'
+            con.print(sTurn)
+            dTimeline[iRound].append(sTurn)
       else:
         bWin, iTarget_field = move_player(iCurr_player, sCard)
+        sTurn = f'{sColor}{sCurr_player}[/] darf {sCard} Schritte gehen und landet auf {iTarget_field}.'
+        dTimeline[iRound].append(sTurn)
         if bWin:
           con.print(f'[yellow]{_banners.sWinner}')
-          con.print(f'YEEAAHH!!!!! {sColor}{sCurr_player}[/] hat gewonnen!!')
+          sTurn = f'YEEAAHH!!!!! {sColor}{sCurr_player}[/] hat gewonnen!!'
+          con.print(sTurn)
+          dTimeline[iRound].append(sTurn)
     else:
       # Place first player on board
       bWin, iTarget_field = move_player(iCurr_player, sCard)
 
-  turn = [iCurr_player, sCurr_player, sCard, iTarget_field]
-  dTimeline[iRound].append(turn)
   if bWin:
     break
-  iCurr_player = get_next_player(iCurr_player)  # , num_of_players)
+  iCurr_player = get_next_player(iCurr_player)
 
 input('Ablauf...')
 for round, series in dTimeline.items():
