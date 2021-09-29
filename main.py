@@ -22,6 +22,7 @@ dSpielerNamen = {
 bClearscreen = True
 field_free = '.'
 field_hole = ':hole:'
+field_target = ':carrot:'
 sClick = 'KLICK'
 num_of_ones = 24
 num_of_twos = 8
@@ -38,6 +39,7 @@ lDeck_of_cards = []
 
 lHoles = [13, 25, 16, 23, 4, 21, 7, 19, 10, None]
 dBoard = dict(zip(range(1, num_of_positions + 1), [field_free] * num_of_positions))
+dBoard[num_of_positions] = field_target
 
 dColors = {
   1: {'text': '[blue]', 'desc': '[bold][blue]BLAU[/]', 'taken': None},
@@ -82,8 +84,8 @@ def clicked(hole: int):
     iPlayer_on_hole = dBoard[hole]
     sName = dPlayers[iPlayer_on_hole]['name']
     sColor = dPlayers[iPlayer_on_hole]['color']
-    con.print(f'[red][blink]{_banners.sHole}')
-    con.print(f'Oh NEIN!! Spieler {sColor}{sName}[/] fällt durch das Loch...')
+    con.print(f'\nOh NEIN!! Spieler {sColor}{sName}[/] fällt durch das Loch...')
+    con.print(f'[red]{_banners.sHole}')
     dPlayers[iPlayer_on_hole]['positionen'][0] = 0
     # input('weiter...')
   dBoard[hole] = field_hole
@@ -101,29 +103,32 @@ def new_player(iPlayer: int):
   return False, 0
 
 
-def get_target_field(pos, iSteps):
-  lNext_20_fields = list(dBoard.values())[pos:pos + 20]
+def print_pieces(iPlayer):
+  lPieces = dPlayers[iPlayer]['positionen']
+  for idx, iField in enumerate(lPieces):
+    con.print(f'{idx}: eine Spielfigur auf Feld: {iField}')
+
+
+def get_target_field(iPos, iSteps):
+  lNext_20_fields = list(dBoard.values())[iPos:iPos + 20]
 
   ifields_free = lNext_20_fields[:iSteps].count(field_free)
   ifields_holes = lNext_20_fields[:iSteps].count(field_hole)
-  ifields = ifields_free + ifields_holes
+  ifields_targets = lNext_20_fields[:iSteps].count(field_target)
+  ifields = ifields_free + ifields_holes + ifields_targets
+  if (iPos + ifields) >= num_of_positions:
+    return num_of_positions
 
   iMoreSteps = iSteps
   while ifields != iSteps:
     iMoreSteps += 1
     ifields_free = lNext_20_fields[:iMoreSteps].count(field_free)
     ifields_holes = lNext_20_fields[:iMoreSteps].count(field_hole)
-    ifields = ifields_free + ifields_holes
+    ifields_targets = lNext_20_fields[:iMoreSteps].count(field_target)
+    ifields = ifields_free + ifields_holes + ifields_targets
 
-  iResult = pos + iMoreSteps
-  print(f'von Position {pos} {iSteps} Schritte landet auf {iResult}')
+  iResult = iPos + iMoreSteps
   return iResult
-
-
-def print_pieces(iPlayer):
-  lPieces = dPlayers[iPlayer]['positionen']
-  for idx, iField in enumerate(lPieces):
-    con.print(f'{idx}: eine Spielfigur auf Feld: {iField}')
 
 
 def move_player(iPlayer: int, iSteps: int):
@@ -164,7 +169,8 @@ def move_player(iPlayer: int, iSteps: int):
   if sTarget == field_hole:
     sName = dPlayers[iPlayer]['name']
     sColor = dPlayers[iPlayer]['color']
-    con.print(f'Oh NEIN!! Spieler {sColor}{sName}[/] hüpft in das Loch...')
+    con.print(f'\nOh NEIN!! Spieler {sColor}{sName}[/] hüpft in das Loch...')
+    con.print(f'[red]{_banners.sHole}')
     dPlayers[iPlayer]['positionen'][0] = 0
     input('weiter...')
   # Ziel ist frei
@@ -216,12 +222,9 @@ def show_status_board():
   con.print('\t'.join(pos[(num_of_positions // 3) * 2:]))
   # con.print('\t'.join(loads[(num_of_positions // 3) * 2:]))
   for field in loads[(num_of_positions // 3) * 2:]:
-    # Loch
-    if field == field_hole:
-      con.print(f'{field_hole}', end='\t')
-    # free
-    elif field == field_free:
-      con.print(field_free, end='\t')
+    # Loch, freies Feld, Karotte
+    if field in [field_hole, field_free, field_target]:
+      con.print(field, end='\t')
     # with player
     else:
       ifield = int(field)
@@ -295,7 +298,7 @@ while True:
     con.print(sTurn)
     dBoard, hole = clicked(hole)
   else:
-    con.print(f'{sColor}{sCurr_player}[/] darf {sCard} Schritte gehen...')
+    # con.print(f'{sColor}{sCurr_player}[/] darf {sCard} Schritte gehen...')
     # Player already present on board
     if any(dPlayers[iCurr_player]['positionen']):
       if num_of_pieces_per_player > 1:
@@ -320,18 +323,19 @@ while True:
         if bWin:
           con.print(f'[yellow]{_banners.sWinner}')
           sTurn = f'YEEAAHH!!!!! {sColor}{sCurr_player}[/] hat gewonnen!!'
-          con.print(sTurn)
           dTimeline[iRound].append(sTurn)
     else:
       # Place first player on board
       bWin, iTarget_field = move_player(iCurr_player, sCard)
+      sTurn = f'{sColor}{sCurr_player}[/] setzt die erste Figur auf {sCard}'
+
+    con.print(sTurn)
 
   if bWin:
     break
   iCurr_player = get_next_player(iCurr_player)
 
 input('Ablauf...')
-for round, series in dTimeline.items():
+for round, sDesc in dTimeline.items():
   con.print(f'\n[yellow]######### Runde {round} #########')
-  for iplayer, splayer, card, target in series:
-    con.print(f'{dPlayers[iplayer]["color"]}{splayer}[/] - {card} -> {target}')
+  con.print(sDesc)
