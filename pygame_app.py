@@ -18,6 +18,7 @@ pygame.init()
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 800
 FPS = 60
+DEBUG = True  # Set to True to see position indices and path lines
 
 # Colors
 WHITE = (255, 255, 255)
@@ -82,25 +83,36 @@ def load_img(name: str | None, scale: tuple[int, int] | None = None) -> pygame.S
 def generate_path_coords() -> list[tuple[float, float]]:
     """
     Generate screen coordinates for the 28 board positions.
-    Creates an oval path around the center carrot.
+    Creates an upward spiral path starting from the bottom.
     """
     coords = []
     center_x, center_y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
-    radius_x, radius_y = 320, 240
+    
+    # Mountain path starting from bottom, winding upward
+    radius_x, radius_y = 350, 260
     
     for i in range(NUM_POSITIONS):
-        # Spiral slightly inward as we go up
-        progress = i / NUM_POSITIONS
-        angle = progress * 2 * math.pi - math.pi / 2  # Start from top
+        # Progress from 0.0 to 1.0
+        progress = i / (NUM_POSITIONS - 1)
         
-        # Slight inward spiral
-        r_factor = 1.0 - (progress * 0.15)
+        # Start at bottom (pi/2) and go counter-clockwise (or clockwise)
+        # 1.5 rotations winding upward
+        angle = math.pi/2 - (progress * 2.5 * math.pi)
+        
+        # Inward spiral factor: radius gets smaller as we go up
+        r_factor = 1.0 - (progress * 0.7)
+        
+        # Calculate base position
         x = center_x + radius_x * r_factor * math.cos(angle)
         y = center_y + radius_y * r_factor * math.sin(angle)
+        
+        # Lift the whole thing as we go up to simulate a mountain slope
+        y -= progress * 150
+        
         coords.append((x - 40, y - 40))  # Offset for sprite centering
     
-    # Position 28 (index 27) is the carrot/win position at center-top
-    coords[27] = (center_x - 40, center_y - 180)
+    # Position 28 (index 27) is the carrot/win position at center-top (peak)
+    coords[27] = (center_x - 40, center_y - 280)
     return coords
 
 
@@ -441,6 +453,30 @@ class FlottiKarottiGame:
         # Draw win overlay
         if self.game.winner:
             self.draw_win_screen()
+            
+        # Debug visualization
+        if DEBUG:
+            self.draw_debug_info()
+    
+    def draw_debug_info(self):
+        """Draw path lines and position indices for debugging."""
+        # Draw lines between positions
+        for i in range(len(PATH_COORDS) - 1):
+            p1 = (PATH_COORDS[i][0] + 40, PATH_COORDS[i][1] + 40)
+            p2 = (PATH_COORDS[i+1][0] + 40, PATH_COORDS[i+1][1] + 40)
+            pygame.draw.line(self.screen, ORANGE, p1, p2, 2)
+        
+        # Draw indices
+        for i, pos in enumerate(PATH_COORDS):
+            center = (int(pos[0] + 40), int(pos[1] + 40))
+            # Circle background
+            pygame.draw.circle(self.screen, WHITE, center, 15)
+            pygame.draw.circle(self.screen, BLACK, center, 15, 2)
+            
+            # Index number (1-based)
+            idx_surf = self.small_font.render(str(i + 1), True, BLACK)
+            idx_rect = idx_surf.get_rect(center=center)
+            self.screen.blit(idx_surf, idx_rect)
     
     def draw_hole_indicator(self):
         """Draw animated hole indicator."""
